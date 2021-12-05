@@ -50,31 +50,155 @@ def single_RSD(agents):
             if top in allocation.keys():
                 if len(allocation[top]) < m:
                     allocation[top].append(agent)
+                    agent.allocated_timeslot = top
                     total_utility += util
                     allocated = True
                 else:
                     i += 1
             else:
                 allocation[top] = [agent]
+                agent.allocated_timeslot = top
                 total_utility += util
                 allocated = True
                 
     return allocation, total_utility
 
-def Graph(agents, allocation, available_timeslots):
+
+def unhappy_agents(agents, allocation):
     '''
+    Input Parameters:
     agents: This is the { i: agent( i, bed_times[i], sleep_times[i], fave_days[i]) for i in range(n)}
-    allocation: This is a list A[t] where t is a timeslot and A[t] gives the list of agents currently in possession of 
-    # timeslot t and want to trade 
+    allocation: This is a list allocation[t] where t is a timeslot and allocation[t] gives the list of agents currently in 
+    possession of timeslot t 
+
+    Returns:
+    agents_with_conflict: Agents who are unhappy with their current allocation due to last minute schedule conflict. Will participate in TTC
+    available_timeslots: Timeslots available to be traded in the upcoming TTC run
+    final_ttc_allocation: This is a list final_ttc_allocation[t] where t is a timeslot and final_ttc_allocation[t] gives the 
+    list of agents currently in possession of timeslot t and want to trade in the upcoming TTC
     '''
-    G = []
-    # Since each agent only points to one other agent in the TTC graph, we can represent the graph as a single list G where 
-    # each index i represents an agent, and G[i] represents the agent that it is pointing to
+    prob_sched_conflict = 0.1
+    agents_with_conflict = []
+    available_timeslots = []
+    ttc_allocation = {}
+    # Flip allocation to agent --> allocated timeslot for easier processing
+    #key, value = timeslot, list of people allocated to timeslot
+    for k,v in allocation.items():
+        for agent in v:
+            ttc_allocation[agent] = k
+
     for agent in list(agents.keys()):
-        i = 0
-        while agents[agent].pref_order[i][0] not in available_timeslots and i < len(agents[agent].pref_order):
-            i += 1 
-        G.append(agents[allocation[agents[agent].pref_order[i][0]]])
+        if random.random() <= prob_sched_conflict:
+            agents[agent].reorder_preferences(agents[agent].allocated_timeslot)
+            agents_with_conflict.append(agents[agent])
+            available_timeslots.append(agents[agent].allocated_timeslot)
+        # If the agent is happy with their current allocated timeslot, they will not participate in the TTC 
+        else:
+            ttc_allocation.pop(agent)
+    # Flip it back to timeslot --> agents allocated to this timeslot
+    final_ttc_allocation = {}
+    for a, timeslot in ttc_allocation.items():
+        if timeslot in final_ttc_allocation.keys():
+            final_ttc_allocation[timeslot].append(a)
+        else:
+            final_ttc_allocation[timeslot] = [a]
+    return agents_with_conflict, available_timeslots, final_ttc_allocation
+
+
+class TTC:
+    def __init__(self, unhappy_agents, available_timeslots, final_ttc_allocation):
+        self.unhappy_agents = unhappy_agents
+        self.available_timeslots = available_timeslots
+        self.final_ttc_allocation = final_ttc_allocation
+        self.G = None
+
+    def create_unhappy_graph(self):
+        '''
+        Input Parameters:
+        unhappy_agents: This is the unhappy_agents(agents, allocation)
+        available_timeslots: Timeslots available to be traded in the upcoming TTC run
+        final_ttc_allocation: This is a list final_ttc_allocation[t] where t is a timeslot and final_ttc_allocation[t] gives the 
+        list of agents currently in possession of timeslot t and want to trade in the upcoming TTC
+
+        Returns:
+        G: An adjacency list representing a directed graph to be used for TTC. Each index i represents an agent, and G[i] 
+        represents a list of agents that it is pointing to (multiple agents may have the same timeslot, since there can be 
+        more than one laundry machine)
+        '''
+        G = []
+        for agent in list(self.unhappy_agents.keys()):
+            i = 0
+            while self.unhappy_agents[agent].pref_order[i][0] not in self.available_timeslots and i < len(self.unhappy_agents[agent].pref_order):
+                i += 1 
+            G.append(self.final_ttc_allocation[self.unhappy_agents[agent].pref_order[i][0]])
+        self.G = G
+        self.visited = [False] * len(self.G)
+        return G
+
+    def start_vertex(self):
+        for v in len(self.G):
+            # If this vertex has not been removed
+            if len(self.G[v]) > 0:
+                return v
+
+    def add_edge(self, source, target):
+        self.G[source].append(target)
+
+    def delete_vertex(self, v):
+        # explicitly deleting v would cause problems with keeping track of which agent corresponds to which vertex
+        # We will simply empty the list G[v] and delete v from all other vertex lists such that v is essentially a standalone vertex         
+        self.G[v] = []
+        for i in len(self.G):
+            if v in self.G[i]:
+                self.G[i].remove(v)
+
+    # change to find all cycles...
+    def find_cycles_helper(self, v, visited, rec_stack, history):
+  
+        # Mark current node as visited and adds to recursion stack
+        visited[v] = True
+        rec_stack[v] = True
+        history.append(v)
+  
+        # Recur for all neighbours
+        # if any neighbour is visited and in 
+        # rec_stack then graph is cyclic
+        for neighbour in self.G[v]:
+            if not visited[neighbour]:
+                possible_cycle = self.find_cycles_helper(neighbour, visited, rec_stack, history)
+                if possible_cycle != []:
+                    return possible_cycle
+            elif rec_stack[neighbour] == True:
+                history.append(neighbour)
+                return history
+  
+        # The vertex needs to be popped from recursion stack before function ends (backtracking)
+        rec_stack[v] = False
+        history.pop()
+        return []
+  
+    def find_cycles(self):
+        all_cycles = []
+        visited = [False] * len(G)
+        rec_stack = [False] * len(G)
+        history = []
+        for v in range(len(G)):
+            if not visited[v]:
+                cycle = self.find_cycles_helper(v, visited, rec_stack, history)
+                if len(cycle) > 0:
+                    # the last vertex in cycle is when we take the backward edge, so we need to cut it off there
+                    cycle = cycle[cycle.index(cycle[-1]):]
+                    all_cycles.append(cycle)
+        return all_cycles
+
+    def single_TTC(self):
+        G = self.create_unhappy_graph()
+        empty = []
+        for i in range(len(G)):
+            empty.append([])
+        while len(G) != empty:
+            all_cycles = self.find_cycles()
+
 
 def fairness(agents, allocation):
     allocated_machine = {}
