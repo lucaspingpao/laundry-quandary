@@ -46,30 +46,61 @@ def single_RSD(agents):
             top = prefs[i][0]
             util = prefs[i][1]
             
-            # check if their top preference is still available
+            # check if their current top preference is still available
             if top in allocation.keys():
                 if len(allocation[top]) < m:
                     allocation[top].append(agent)
                     total_utility += util
                     allocated = True
                 else:
-                    i +=1
+                    i += 1
             else:
                 allocation[top] = [agent]
                 total_utility += util
                 allocated = True
                 
-    return allocation,total_utility
+    return allocation, total_utility
 
+def Graph(agents, allocation, available_timeslots):
+    '''
+    agents: This is the { i: agent( i, bed_times[i], sleep_times[i], fave_days[i]) for i in range(n)}
+    allocation: This is a list A[t] where t is a timeslot and A[t] gives the list of agents currently in possession of 
+    # timeslot t and want to trade 
+    '''
+    G = []
+    # Since each agent only points to one other agent in the TTC graph, we can represent the graph as a single list G where 
+    # each index i represents an agent, and G[i] represents the agent that it is pointing to
+    for agent in list(agents.keys()):
+        i = 0
+        while agents[agent].pref_order[i][0] not in available_timeslots and i < len(agents[agent].pref_order):
+            i += 1 
+        G.append(agents[allocation[agents[agent].pref_order[i][0]]])
 
+def fairness(agents, allocation):
+    allocated_machine = {}
+    #key, value = timeslot, list of people allocated to timeslot
+    for k,v in allocation.items():
+        for agent in v:
+            allocated_machine[agent] = k
+    total_fair = 0
+    for agent in agents:
+        if allocated_machine.get(agent):
+            prefs = [f for f,s in agents[agent].pref_order]
+            if prefs.index(allocated_machine[agent]) < 50:
+                total_fair += 1
+    return total_fair / n * 100
 
 
 
 # simulate a week
 
-# run RSD first
-a,total_utility = single_RSD(agents)
-print(total_utility)
+def simulate(agents):
+    # run RSD first
+    a,total_utility = single_RSD(agents)
+    print("Total utility from RSD is:", total_utility)
+    print("Fairness is", fairness(agents, a), "%")
+
+
 
 # iterate over each day of the week
 
@@ -82,4 +113,4 @@ print(total_utility)
 # if there is an available spot that is preferred then point to it,this will be for everybody, not just releasing people,
 # but the total spots available will consist of the released spots + initially unallocated spots
 
-
+simulate(agents)

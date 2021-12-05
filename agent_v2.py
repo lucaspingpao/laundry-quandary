@@ -20,7 +20,7 @@ def utility(time_slot, best_day, wake_time, bed_time):
         # print("this time slot is at:", day_hour, 'and I dont wake up until: ', wake_time)
         u= 0
     elif day_hour > bed_time:
-        print("this time slot is at:", day_hour, 'and I go to bed at: ', wake_time)
+        # print("this time slot is at:", day_hour, 'and I go to bed at: ', wake_time)
         u= 0
     else:
         x = time_slot 
