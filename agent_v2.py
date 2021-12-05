@@ -30,12 +30,13 @@ def utility(time_slot, best_day, wake_time, bed_time):
 
 # an agent class that is initialized with average bed time, average sleep time, and best day
 class agent:
-    def __init__(self, id, avg_bt, avg_st, best_day):
+    def __init__(self, agent_id, avg_bt, avg_st, best_day):
         self.average_bedtime = avg_bt
         self.average_sleeptime = avg_st
         self.average_wake_time = (avg_bt+avg_st) % 24
         self.best_day = best_day
-        self.id = id
+        self.id = agent_id
+        self.allocated_timeslot = None
         
         x = list(range(1,85,1))
         # calculate utility for every time slot
@@ -43,6 +44,11 @@ class agent:
         
         # use the utilities to create a preference ordering
         self.pref_order = sorted(self.u, key=lambda x: x[1], reverse=True)
+
+    def reorder_preferences(self, t):
+        self.u[t][1] = 0
+        self.pref_order = sorted(self.u, key=lambda x: x[1], reverse=True)
+
 
         
 #a = agent(23,8,3)
