@@ -86,7 +86,7 @@ def fairness(agents, allocation):
     for agent in agents:
         if allocated_machine.get(agent):
             prefs = [f for f,s in agents[agent].pref_order]
-            if prefs.index(allocated_machine[agent]) < 50:
+            if prefs.index(allocated_machine[agent]) < 1:
                 total_fair += 1
     return total_fair / n * 100
 
@@ -95,11 +95,67 @@ def fairness(agents, allocation):
 # simulate a week
 
 def simulate(agents):
-    # run RSD first
-    a,total_utility = single_RSD(agents)
-    print("Total utility from RSD is:", total_utility)
-    print("Fairness is", fairness(agents, a), "%")
+    num_weeks = 12
 
+    # run RSD first
+    print("***** Running RSD *****\n")
+    total_total_utility = 0
+    total_fairness = 0
+    for week in range(num_weeks):
+        allocation, total_utility = single_RSD(agents)
+        print("Week", week + 1)
+        print("\tTotal utility from RSD is:", total_utility)
+        total_total_utility += total_utility
+        f = fairness(agents, allocation)
+        print("\tFairness from RSD is", fairness(agents, allocation), "%")
+        total_fairness += f
+    print("Total Utility from", num_weeks, "weeks:", total_total_utility)
+    print("Average Fairness from", num_weeks, "weeks:", total_fairness/num_weeks, "%\n")
+
+    # run TTC week
+    print("***** Running TTC week *****\n")
+    total_total_utility = 0
+    total_fairness = 0
+    for week in range(num_weeks):
+        allocation, total_utility = single_RSD(agents)
+        print("Week", week + 1)
+        print("\tTotal utility from TTC week s:", total_utility)
+        total_total_utility += total_utility
+        f = fairness(agents, allocation)
+        print("\tFairness from TTC week is", fairness(agents, allocation), "%")
+        total_fairness += f
+    print("Total Utility from", num_weeks, "weeks:", total_total_utility)
+    print("Average Fairness from", num_weeks, "weeks:", total_fairness/num_weeks, "%\n")
+
+    # run TTC day
+    print("***** Running TTC Day *****\n")
+    total_total_utility = 0
+    total_fairness = 0
+    for week in range(num_weeks):
+        allocation, total_utility = single_RSD(agents)
+        print("Week", week + 1)
+        print("\tTotal utility from TTC day is:", total_utility)
+        total_total_utility += total_utility
+        f = fairness(agents, allocation)
+        print("\tFairness from TTC day is", fairness(agents, allocation), "%")
+        total_fairness += f
+    print("Total Utility from", num_weeks, "weeks:", total_total_utility)
+    print("Average Fairness from", num_weeks, "weeks:", total_fairness/num_weeks, "%\n")
+
+    # run RSD/TTC combined
+    print("***** Running RSD/TTC combined *****\n")
+    total_total_utility = 0
+    total_fairness = 0
+    for week in range(num_weeks):
+        allocation, total_utility = single_RSD(agents)
+        print("Week", week + 1)
+        print("\tTotal utility from RSD/TTC combined is:", total_utility)
+        total_total_utility += total_utility
+        f = fairness(agents, allocation)
+        print("\tFairness from RSD/TTC combined is", fairness(agents, allocation), "%")
+        total_fairness += f
+    print("Total Utility from", num_weeks, "weeks:", total_total_utility)
+    print("Average Fairness from", num_weeks, "weeks:", total_fairness/num_weeks, "%\n")
 
 
 # iterate over each day of the week
