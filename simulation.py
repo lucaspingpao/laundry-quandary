@@ -208,7 +208,7 @@ class TTC:
         return post_ttc_allocation
 
 
-def fairness(agents, allocation):
+def fairness(agents, allocation, top):
     allocated_machine = {}
     #key, value = timeslot, list of people allocated to timeslot
     for k,v in allocation.items():
@@ -218,7 +218,7 @@ def fairness(agents, allocation):
     for agent in agents:
         if allocated_machine.get(agent):
             prefs = [f for f,s in agents[agent].pref_order]
-            if prefs.index(allocated_machine[agent]) < 50:
+            if prefs.index(allocated_machine[agent]) < top:
                 total_fair += 1
     return total_fair / n * 100
 
@@ -227,10 +227,27 @@ def fairness(agents, allocation):
 # simulate a week
 
 def simulate(agents):
-    # run RSD first
-    a,total_utility = single_RSD(agents)
-    print("Total utility from RSD is:", total_utility)
-    print("Fairness is", fairness(agents, a), "%")
+    num_weeks = 12
+    mechanisms = ['RSD', 'TTC', 'RSD & TTC', 'TTC & TTC']
+    for m in mechanisms:
+        print("***** Running", m, "*****\n")
+        total_total_utility = 0
+        total_fairness = 0
+        total_top_choice = 0
+        for week in range(num_weeks):
+            allocation, total_utility = single_RSD(agents)
+            print("Week", week + 1)
+            print("\tTotal utility from", m, "is:", total_utility)
+            total_total_utility += total_utility
+            f1 = fairness(agents, allocation, 3)
+            print("\tFairness from", m, "is", fairness(agents, allocation), "%")
+            total_fairness += f1
+            f2 = fairness(agents, allocation, 1)
+            print("\tTop Choice from", m, "is", fairness(agents, allocation), "%")
+            total_top_choice += f2
+        print("Total Utility from", num_weeks, "weeks:", total_total_utility)
+        print("Average Fairness from", num_weeks, "weeks:", total_fairness/num_weeks, "%\n")
+        print("Top Choice from", num_weeks, "weeks:", total_top_choice/num_weeks, "%\n")
 
 
 

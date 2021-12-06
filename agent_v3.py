@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 
 # time slots are two hours
 time_slot_length = 2 
+time_slot_interval = 10 # minutes between each laundry use
 
 # a function with domain [-5400,5400] with preferences centered at x=0 for noon
 # of a favorite day
@@ -62,11 +63,12 @@ class agent:
         
         # calculate utility for every time slot
         self.u = all_utility(self.best_day,self.average_wake_time,self.average_bedtime,p)
-        self.u_pairs = [ (i,self.u[i]) for i in range(10800)]
+        self.u_pairs = [(i,self.u[i]) for i in range(10800) if i % time_slot_interval == 0]
         # use the utilities to create a preference ordering
         self.pref_order = sorted(self.u_pairs, key=lambda x: x[1], reverse=True)
 
         
 a = agent(99,23,8,1,300)
-x = list(range(0,1080,1))
-plt.plot(x,a.u)
+print(a.pref_order)
+#x = list(range(0,1080,1))
+#plt.plot(x,a.u)
