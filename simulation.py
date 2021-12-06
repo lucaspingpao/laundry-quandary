@@ -3,7 +3,7 @@
 """
 Created on Sat Dec  4 16:19:11 2021
 
-@author: alec
+@author: Brandon
 """
 import random
 from agent_v3 import agent
@@ -286,27 +286,6 @@ def simulate(agents):
         print("Average Fairness from", num_weeks, "weeks:", total_fairness/num_weeks, "%\n")
         print("Top Choice from", num_weeks, "weeks:", total_top_choice/num_weeks, "%\n")
 
-
-# iterate over each day of the week
-
-# with small probability for each agent, their current allocaiton is released
-
-# each agent now points to their top available preference
-
-# run TTC mechanism
-
-# if there is an available spot that is preferred then point to it,this will be for everybody, not just releasing people,
-# but the total spots available will consist of the released spots + initially unallocated spots
-
-#simulate(agents)
-
-'''allocation, total_utility, remaining_timeslots = single_RSD(agents)
-print(remaining_timeslots)
-agents_with_conflict, available_timeslots, pre_ttc_allocation = unhappy_agents(agents, allocation)
-print(available_timeslots)
-print(final_ttc_allocation)
-
-print()'''
 
 allocation, total_utility, remaining_timeslots = single_RSD(agents)
 agents_with_conflict, available_timeslots, pre_ttc_allocation, real_agent_pre_ttc_allocation = unhappy_agents(agents, allocation)
