@@ -250,7 +250,6 @@ def simulate(agents):
         print("Top Choice from", num_weeks, "weeks:", total_top_choice/num_weeks, "%\n")
 
 
-
 # iterate over each day of the week
 
 # with small probability for each agent, their current allocaiton is released
