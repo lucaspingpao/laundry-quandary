@@ -6,7 +6,7 @@ Created on Sat Dec  4 16:19:11 2021
 @author: alec
 """
 import random
-from agent_v2 import agent
+from agent_v3 import agent
 
 # number of agents in the simulation
 n = 100
@@ -20,7 +20,7 @@ bed_times = random.choices([20,21,22,23,24,1,2,3],k=n)
 sleep_times = random.choices([6,7,8,9],k=n)
 
 # intialize agents
-agents = { i: agent( i, bed_times[i], sleep_times[i], fave_days[i]) for i in range(n)}
+agents = { i: agent( i, bed_times[i], sleep_times[i], fave_days[i], 500) for i in range(n)}
 
 # runs a single round of random serial dictatorship
 def single_RSD(agents):
@@ -50,7 +50,7 @@ def single_RSD(agents):
             if top in allocation.keys():
                 if len(allocation[top]) < m:
                     allocation[top].append(agent)
-                    agent.allocated_timeslot = top
+                    agents[agent].allocated_timeslot = top
                     remaining_timeslots.pop(top, None)
                     total_utility += util
                     allocated = True
@@ -58,7 +58,7 @@ def single_RSD(agents):
                     i += 1
             else:
                 allocation[top] = [agent]
-                agent.allocated_timeslot = top
+                agents[agent].allocated_timeslot = top
                 remaining_timeslots.pop(top, None)
                 total_utility += util
                 allocated = True
@@ -235,15 +235,15 @@ def simulate(agents):
         total_fairness = 0
         total_top_choice = 0
         for week in range(num_weeks):
-            allocation, total_utility = single_RSD(agents)
+            allocation, total_utility, remaining_timeslots = single_RSD(agents)
             print("Week", week + 1)
             print("\tTotal utility from", m, "is:", total_utility)
             total_total_utility += total_utility
             f1 = fairness(agents, allocation, 3)
-            print("\tFairness from", m, "is", fairness(agents, allocation), "%")
+            print("\tFairness from", m, "is", fairness(agents, allocation, 3), "%")
             total_fairness += f1
             f2 = fairness(agents, allocation, 1)
-            print("\tTop Choice from", m, "is", fairness(agents, allocation), "%")
+            print("\tTop Choice from", m, "is", fairness(agents, allocation, 1), "%")
             total_top_choice += f2
         print("Total Utility from", num_weeks, "weeks:", total_total_utility)
         print("Average Fairness from", num_weeks, "weeks:", total_fairness/num_weeks, "%\n")

@@ -60,6 +60,7 @@ class agent:
         self.best_day = best_day
         self.id = id
         self.p = p
+        self.allocated_timeslot = None
         
         # calculate utility for every time slot
         self.u = all_utility(self.best_day,self.average_wake_time,self.average_bedtime,p)
