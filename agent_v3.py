@@ -70,6 +70,6 @@ class agent:
 
         
 a = agent(99,23,8,1,300)
-print(a.pref_order)
+#print(a.pref_order)
 #x = list(range(0,1080,1))
 #plt.plot(x,a.u)
