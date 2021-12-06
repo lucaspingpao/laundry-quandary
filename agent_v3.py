@@ -59,6 +59,7 @@ class agent:
         self.best_day = best_day
         self.id = id
         self.p = p
+        self.allocated_timeslot = None
         
         # calculate utility for every time slot
         self.u = all_utility(self.best_day,self.average_wake_time,self.average_bedtime,p)
@@ -68,5 +69,5 @@ class agent:
 
         
 a = agent(99,23,8,1,300)
-x = list(range(0,1080,1))
+x = list(range(0,10800,1))
 plt.plot(x,a.u)

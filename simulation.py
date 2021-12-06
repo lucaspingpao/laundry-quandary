@@ -32,16 +32,11 @@ def single_RSD(agents):
     # dict of (time slot #, list of allocated agents)
     allocation = {}
     total_utility = 0
-    remaining_timeslots = {i : True for i in range(10800)}
+    free_timeslots = {i : True for i in range(10800)}
     # iterate over agents in order
     for agent in list(order):
-
-        prefs = agents[agent].pref_order
-        allocated = False
-        i = 0
-        
-        while allocated == False:
-            
+        prefs = agents[agent].pref_order        
+        for i in range(len(prefs)):
             # current top preference
             top = prefs[i][0]
             util = prefs[i][1]
@@ -49,29 +44,33 @@ def single_RSD(agents):
             # check if their current top preference is still available
             if top in allocation.keys():
                 if len(allocation[top]) < m:
-                    allocation[top].append(agent)
-                    agent.allocated_timeslot = top
-                    remaining_timeslots.pop(top, None)
+                    allocation[top] = agent
+                    agents[agent].allocated_timeslot = top
+                    free_timeslots.pop(top, None)
                     total_utility += util
                     allocated = True
-                else:
-                    i += 1
             else:
                 allocation[top] = [agent]
-                agent.allocated_timeslot = top
-                remaining_timeslots.pop(top, None)
+                agents[agent].allocated_timeslot = top
+                free_timeslots.pop(top, None)
                 total_utility += util
                 allocated = True
+
+    agent_timeslot_allocation = {}
+    # Flip allocation to agent --> allocated timeslot for easier processing
+    #key, value = timeslot, list of people allocated to timeslot
+    for timeslot, agents in allocation.items():
+        for agent in agents:
+            agent_timeslot_allocation[agent] = timeslot
                 
-    return allocation, total_utility, remaining_timeslots
+    return agent_timeslot_allocation, total_utility, free_timeslots
 
 
-def unhappy_agents(agents, allocation):
+def unhappy_agents(agents, allocation, free_timeslots):
     '''
     Input Parameters:
     agents: This is the { i: agent( i, bed_times[i], sleep_times[i], fave_days[i]) for i in range(n)}
-    allocation: This is a list allocation[t] where t is a timeslot and allocation[t] gives the list of agents currently in 
-    possession of timeslot t 
+    allocation: This is a list allocation[a] where a is an agent and allocation[a] gives the timeslot currently in a's possession
 
     Returns:
     agents_with_conflict: Agents who are unhappy with their current allocation due to last minute schedule conflict. Will participate in TTC
@@ -80,23 +79,24 @@ def unhappy_agents(agents, allocation):
     list of agents currently in possession of timeslot t and want to trade in the upcoming TTC
     '''
     prob_sched_conflict = 0.1
-    agents_with_conflict = []
-    available_timeslots = []
-    ttc_allocation = {}
-    # Flip allocation to agent --> allocated timeslot for easier processing
-    #key, value = timeslot, list of people allocated to timeslot
-    for k,v in allocation.items():
-        for agent in v:
-            ttc_allocation[agent] = k
+    agents_with_conflict = {}
+    available_timeslots = {}
+    ttc_allocation = allocation
 
     for agent in list(agents.keys()):
         if random.random() <= prob_sched_conflict:
             agents[agent].reorder_preferences(agents[agent].allocated_timeslot)
-            agents_with_conflict.append(agents[agent])
-            available_timeslots.append(agents[agent].allocated_timeslot)
+            agents_with_conflict[agent] = agents[agent]
+            available_timeslots[agents[agent].allocated_timeslot] = True
         # If the agent is happy with their current allocated timeslot, they will not participate in the TTC 
         else:
             ttc_allocation.pop(agent)
+
+    # Add dummy agents to the ttc_allocation
+    for dummy_id, t in enumerate(list(free_timeslots.keys())):
+        ttc_allocation[n+dummy_id] = free_timeslots[t]
+        available_timeslots[t] = True
+
     # Flip it back to timeslot --> agents allocated to this timeslot
     final_ttc_allocation = {}
     for a, timeslot in ttc_allocation.items():
@@ -106,13 +106,15 @@ def unhappy_agents(agents, allocation):
             final_ttc_allocation[timeslot] = [a]
     return agents_with_conflict, available_timeslots, final_ttc_allocation
 
-
 class TTC:
-    def __init__(self, unhappy_agents, available_timeslots, final_ttc_allocation, remaining_timeslots):
+    def __init__(self, all_agents, overall_allocation, unhappy_agents, available_timeslots, final_ttc_allocation, free_timeslots):
+        self.overall_allocation = overall_allocation
+        self.all_agents = all_agents
         self.unhappy_agents = unhappy_agents
         self.available_timeslots = available_timeslots
         self.final_ttc_allocation = final_ttc_allocation
-        self.remaining_timeslots = remaining_timeslots
+        self.free_timeslots = free_timeslots
+        self.dummy_agents = zip(range(len(list(free_timeslots.keys()))), list(free_timeslots.keys()))
         self.G = None
 
     def create_unhappy_graph(self):
@@ -132,12 +134,13 @@ class TTC:
         G = []
         for agent in list(self.unhappy_agents.keys()):
             i = 0
-            while self.unhappy_agents[agent].pref_order[i][0] not in self.available_timeslots and i < len(self.unhappy_agents[agent].pref_order):
+            while self.available_timeslots.get(self.unhappy_agents[agent].pref_order[i][0], None) is None and i < len(self.unhappy_agents[agent].pref_order):
                 i += 1 
             G.append(self.final_ttc_allocation[self.unhappy_agents[agent].pref_order[i][0]])
 
-        for dummy_agent in list(self.remaining_timeslots.keys()):
-            G.append([dummy_agent])
+        # When accessing the timeslot of the dummy agents, use - len(list(self.unhappy_agents.keys()))
+        for free_timeslot in list(self.free_timeslots.keys()):
+            G.append(list(self.unhappy_agents.keys()))
 
         self.G = G
         self.visited = [False] * len(self.G)
@@ -175,6 +178,12 @@ class TTC:
         return cycle
 
     def single_TTC(self):
+        '''
+        Returns:
+        post_ttc_allocation: New allocation for unhappy agents after TTC, post_ttc_allocation[a] gives timeslot allocated to a
+        (Note) The indices for post_ttc_allocation are in range(len(self.unhappy_agents)) instead of their actual indices in 
+        all the agents, so this needs to be converted back using self.unhappy_agents
+        '''
         pre_ttc_allocation = {}
         post_ttc_allocation = {}
         remaining_vertices = {}
@@ -186,10 +195,10 @@ class TTC:
 
         self.create_unhappy_graph()
         empty = []
-        for i in range(len(self.G)):
+        for i in range(len(list(self.unhappy_agents.keys()))):
             empty.append([])
 
-        while len(self.G) != empty:
+        while self.G[:len(list(self.unhappy_agents.keys()))] != empty:
             cycle = self.find_cycle()
             # assign agents in the cycle their house
             for i in range(len(cycle)-1):
@@ -205,22 +214,23 @@ class TTC:
                         i += 1 
                     self.G.add_edge(agent, self.final_ttc_allocation[self.unhappy_agents[agent].pref_order[i][0]])
         print(post_ttc_allocation)
+
+        #overall_post_ttc_alloc = self.overall_allocation
+        #for agent_id, unhappy_agent in enumerate(list(self.unhappy_agents.keys())):
+        #    overall_post_ttc_alloc[unhappy_agent] = post_ttc_allocation[]
+
         return post_ttc_allocation
 
 
+
 def fairness(agents, allocation):
-    allocated_machine = {}
-    #key, value = timeslot, list of people allocated to timeslot
-    for k,v in allocation.items():
-        for agent in v:
-            allocated_machine[agent] = k
     total_fair = 0
     for agent in agents:
-        if allocated_machine.get(agent):
+        if allocation.get(agent):
             prefs = [f for f,s in agents[agent].pref_order]
-            if prefs.index(allocated_machine[agent]) < 50:
+            if prefs.index(allocation[agent]) < 50:
                 total_fair += 1
-    return total_fair / n * 100
+    return 100 * total_fair / n 
 
 
 
@@ -228,9 +238,10 @@ def fairness(agents, allocation):
 
 def simulate(agents):
     # run RSD first
-    a,total_utility = single_RSD(agents)
+    agent_timeslot_allocation, total_utility, free_timeslots = single_RSD(agents)
+    print(agent_timeslot_allocation)
     print("Total utility from RSD is:", total_utility)
-    print("Fairness is", fairness(agents, a), "%")
+    print("Fairness is", fairness(agents, agent_timeslot_allocation), "%")
 
 
 
